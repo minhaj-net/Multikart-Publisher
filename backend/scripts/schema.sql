@@ -1,0 +1,561 @@
+-- Multikart MySQL Schema
+-- Run: mysql -u root -p multikart < scripts/schema.sql (after: CREATE DATABASE multikart;)
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- Reference / config
+CREATE TABLE IF NOT EXISTS currencies (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(10) NOT NULL,
+  symbol VARCHAR(10) NOT NULL,
+  no_of_decimal TINYINT DEFAULT 2,
+  exchange_rate DECIMAL(20,6) DEFAULT 1,
+  symbol_position VARCHAR(20) DEFAULT 'before_price',
+  thousands_separator VARCHAR(20) DEFAULT 'comma',
+  decimal_separator VARCHAR(20) DEFAULT 'comma',
+  system_reserve TINYINT DEFAULT 0,
+  status TINYINT DEFAULT 1,
+  created_by_id VARCHAR(20) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_currencies_code (code)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS themes (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(100) NOT NULL,
+  image VARCHAR(255) NULL,
+  status TINYINT DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_themes_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS theme_options (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  options JSON NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS settings (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `key` VARCHAR(100) NOT NULL,
+  value JSON NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_settings_key (`key`)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS countries (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  currency VARCHAR(50) NULL,
+  currency_symbol VARCHAR(10) NULL,
+  iso_3166_2 VARCHAR(5) NULL,
+  iso_3166_3 VARCHAR(5) NULL,
+  calling_code VARCHAR(10) NULL,
+  flag VARCHAR(50) NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS states (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  country_id INT UNSIGNED NOT NULL,
+  KEY idx_states_country (country_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS taxes (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  rate DECIMAL(8,4) DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS attributes (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  style VARCHAR(50) NULL,
+  slug VARCHAR(100) NOT NULL,
+  status TINYINT DEFAULT 1,
+  created_by_id VARCHAR(20) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_attributes_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS attribute_values (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  attribute_id INT UNSIGNED NOT NULL,
+  value VARCHAR(100) NOT NULL,
+  hex_color VARCHAR(20) NULL,
+  slug VARCHAR(100) NOT NULL,
+  created_by_id VARCHAR(20) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_attr_values_attr (attribute_id)
+) ENGINE=InnoDB;
+
+-- Media (generic for product/category/brand images)
+CREATE TABLE IF NOT EXISTS media (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NULL,
+  file_name VARCHAR(255) NULL,
+  mime_type VARCHAR(100) NULL,
+  disk VARCHAR(50) DEFAULT 'public',
+  asset_url VARCHAR(500) NULL,
+  original_url VARCHAR(500) NULL,
+  created_by_id VARCHAR(20) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- Catalog
+CREATE TABLE IF NOT EXISTS brands (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(100) NOT NULL,
+  brand_image_id INT UNSIGNED NULL,
+  brand_meta_image_id INT UNSIGNED NULL,
+  brand_banner_id INT UNSIGNED NULL,
+  meta_title VARCHAR(255) NULL,
+  meta_description TEXT NULL,
+  created_by_id VARCHAR(20) NULL,
+  status TINYINT DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_brands_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS stores (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  slug VARCHAR(200) NOT NULL,
+  status TINYINT DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_stores_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS categories (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  parent_id INT UNSIGNED NULL,
+  name VARCHAR(200) NOT NULL,
+  slug VARCHAR(200) NOT NULL,
+  description TEXT NULL,
+  category_image_id INT UNSIGNED NULL,
+  category_icon_id INT UNSIGNED NULL,
+  category_meta_image_id INT UNSIGNED NULL,
+  type VARCHAR(50) DEFAULT 'product',
+  commission_rate DECIMAL(8,4) NULL,
+  status TINYINT DEFAULT 1,
+  meta_title VARCHAR(255) NULL,
+  meta_description TEXT NULL,
+  created_by_id VARCHAR(20) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_categories_parent (parent_id),
+  UNIQUE KEY uk_categories_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS products (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL,
+  short_description TEXT NULL,
+  description LONGTEXT NULL,
+  type VARCHAR(50) DEFAULT 'simple',
+  unit VARCHAR(50) NULL,
+  weight INT UNSIGNED DEFAULT 0,
+  quantity INT UNSIGNED DEFAULT 0,
+  price DECIMAL(14,2) DEFAULT 0,
+  sale_price DECIMAL(14,2) DEFAULT 0,
+  discount DECIMAL(8,2) NULL,
+  is_featured TINYINT DEFAULT 0,
+  shipping_days INT NULL,
+  is_cod TINYINT DEFAULT 0,
+  is_free_shipping TINYINT DEFAULT 0,
+  is_sale_enable TINYINT DEFAULT 0,
+  is_return TINYINT DEFAULT 0,
+  is_trending TINYINT DEFAULT 0,
+  is_approved TINYINT DEFAULT 1,
+  is_external TINYINT DEFAULT 0,
+  external_url VARCHAR(500) NULL,
+  external_button_text VARCHAR(100) NULL,
+  sale_starts_at DATE NULL,
+  sale_expired_at DATE NULL,
+  sku VARCHAR(100) NULL,
+  is_random_related_products TINYINT DEFAULT 0,
+  stock_status VARCHAR(20) DEFAULT 'in_stock',
+  meta_title VARCHAR(255) NULL,
+  meta_description TEXT NULL,
+  product_thumbnail_id INT UNSIGNED NULL,
+  product_meta_image_id VARCHAR(20) NULL,
+  size_chart_image_id INT UNSIGNED NULL,
+  estimated_delivery_text VARCHAR(500) NULL,
+  return_policy_text VARCHAR(500) NULL,
+  safe_checkout TINYINT DEFAULT 1,
+  secure_checkout TINYINT DEFAULT 1,
+  social_share TINYINT DEFAULT 1,
+  encourage_order TINYINT DEFAULT 1,
+  encourage_view TINYINT DEFAULT 1,
+  status TINYINT DEFAULT 1,
+  store_id INT UNSIGNED NULL,
+  created_by_id VARCHAR(20) NULL,
+  tax_id INT UNSIGNED NULL,
+  preview_type VARCHAR(50) NULL,
+  product_type VARCHAR(50) DEFAULT 'physical',
+  is_licensable TINYINT DEFAULT 0,
+  license_type VARCHAR(50) NULL,
+  preview_url VARCHAR(500) NULL,
+  watermark TINYINT DEFAULT 0,
+  watermark_position VARCHAR(50) NULL,
+  brand_id INT UNSIGNED NULL,
+  watermark_image_id INT UNSIGNED NULL,
+  wholesale_price_type VARCHAR(50) NULL,
+  is_licensekey_auto TINYINT DEFAULT 0,
+  preview_audio_file_id INT UNSIGNED NULL,
+  preview_video_file_id INT UNSIGNED NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_products_slug (slug),
+  KEY idx_products_brand (brand_id),
+  KEY idx_products_store (store_id),
+  KEY idx_products_status (status)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS product_variations (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  name VARCHAR(255) NULL,
+  price DECIMAL(14,2) DEFAULT 0,
+  sale_price DECIMAL(14,2) DEFAULT 0,
+  quantity INT UNSIGNED DEFAULT 0,
+  stock_status VARCHAR(20) DEFAULT 'in_stock',
+  sku VARCHAR(100) NULL,
+  status TINYINT DEFAULT 1,
+  variation_image_id INT UNSIGNED NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_pv_product (product_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS product_categories (
+  product_id INT UNSIGNED NOT NULL,
+  category_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (product_id, category_id),
+  KEY idx_pc_category (category_id)
+) ENGINE=InnoDB;
+
+-- Content
+CREATE TABLE IF NOT EXISTS pages (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL,
+  content LONGTEXT NULL,
+  status TINYINT DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_pages_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS tags (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  slug VARCHAR(100) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_tags_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS blogs (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  slug VARCHAR(255) NOT NULL,
+  content LONGTEXT NULL,
+  excerpt TEXT NULL,
+  status TINYINT DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_blogs_slug (slug)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS blog_categories (
+  blog_id INT UNSIGNED NOT NULL,
+  category_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (blog_id, category_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS blog_tags (
+  blog_id INT UNSIGNED NOT NULL,
+  tag_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (blog_id, tag_id)
+) ENGINE=InnoDB;
+
+-- Users & auth
+CREATE TABLE IF NOT EXISTS roles (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  guard_name VARCHAR(50) DEFAULT 'web',
+  system_reserve TINYINT DEFAULT 0
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS permissions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  guard_name VARCHAR(50) DEFAULT 'web',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS role_permissions (
+  role_id INT UNSIGNED NOT NULL,
+  permission_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (role_id, permission_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NULL,
+  email VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  country_code VARCHAR(10) NULL,
+  phone VARCHAR(30) NULL,
+  profile_image_id INT UNSIGNED NULL,
+  system_reserve VARCHAR(20) DEFAULT '0',
+  status TINYINT DEFAULT 1,
+  role_id INT UNSIGNED NULL,
+  created_by_id VARCHAR(20) NULL,
+  email_verified_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_users_email (email),
+  KEY idx_users_role (role_id)
+) ENGINE=InnoDB;
+
+-- User data
+CREATE TABLE IF NOT EXISTS addresses (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  title VARCHAR(100) NULL,
+  street VARCHAR(255) NULL,
+  city VARCHAR(100) NULL,
+  pincode VARCHAR(20) NULL,
+  state_id INT UNSIGNED NULL,
+  country_id INT UNSIGNED NULL,
+  phone VARCHAR(30) NULL,
+  country_code VARCHAR(10) NULL,
+  is_default TINYINT DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_addresses_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS cart_items (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  variation_id INT UNSIGNED NULL,
+  consumer_id INT UNSIGNED NOT NULL,
+  quantity INT UNSIGNED DEFAULT 1,
+  sub_total DECIMAL(14,2) DEFAULT 0,
+  wholesale_price DECIMAL(14,2) DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_cart_consumer (consumer_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wishlists (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  consumer_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_wishlist_user_product (consumer_id, product_id),
+  KEY idx_wishlists_consumer (consumer_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS order_statuses (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  slug VARCHAR(50) NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS orders (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_number INT UNSIGNED NOT NULL,
+  consumer_id INT UNSIGNED NOT NULL,
+  tax_total DECIMAL(14,2) DEFAULT 0,
+  shipping_total DECIMAL(14,2) DEFAULT 0,
+  points_amount DECIMAL(14,2) DEFAULT 0,
+  wallet_balance DECIMAL(14,2) DEFAULT 0,
+  amount DECIMAL(14,2) DEFAULT 0,
+  total DECIMAL(14,2) DEFAULT 0,
+  is_digital_only TINYINT DEFAULT 0,
+  coupon_total_discount DECIMAL(14,2) DEFAULT 0,
+  payment_method VARCHAR(50) NULL,
+  payment_status VARCHAR(30) DEFAULT 'PENDING',
+  billing_address_id INT UNSIGNED NULL,
+  shipping_address_id INT UNSIGNED NULL,
+  store_id INT UNSIGNED NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_orders_consumer (consumer_id),
+  KEY idx_orders_number (order_number)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS order_items (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  order_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  variation_id INT UNSIGNED NULL,
+  quantity INT UNSIGNED DEFAULT 1,
+  price DECIMAL(14,2) DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_order_items_order (order_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  order_id INT UNSIGNED NULL,
+  rating TINYINT UNSIGNED NOT NULL,
+  comment TEXT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_reviews_product (product_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS notifications (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  title VARCHAR(255) NULL,
+  body TEXT NULL,
+  read_at DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_notifications_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  amount DECIMAL(14,2) NOT NULL,
+  type VARCHAR(50) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_wallet_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS point_transactions (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  points INT NOT NULL,
+  type VARCHAR(50) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_points_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(50) NOT NULL,
+  discount_type VARCHAR(20) NULL,
+  discount_value DECIMAL(14,2) NULL,
+  status TINYINT DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  UNIQUE KEY uk_coupons_code (code)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS refunds (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  consumer_id INT UNSIGNED NOT NULL,
+  order_id INT UNSIGNED NULL,
+  reason TEXT NULL,
+  status VARCHAR(30) DEFAULT 'pending',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_refunds_consumer (consumer_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS question_answers (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  question TEXT NULL,
+  answer TEXT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_qa_product (product_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS downloads (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  order_id INT UNSIGNED NULL,
+  product_id INT UNSIGNED NULL,
+  file_path VARCHAR(500) NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_downloads_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS payment_accounts (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  type VARCHAR(50) DEFAULT 'bank',
+  details JSON NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_payment_accounts_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS faqs (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  question TEXT NULL,
+  answer TEXT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS compare_items (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
+  KEY idx_compare_user (user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS subscribers (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_subscribers_email (email)
+) ENGINE=InnoDB;
+
+SET FOREIGN_KEY_CHECKS = 1;
